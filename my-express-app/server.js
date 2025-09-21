@@ -13,15 +13,29 @@ const port = 3000;
 
 // ADD CORS configuration here
 // Allows requests from the React development server (typically port 3000, 3001 or whatever create-react-app uses)
-// Allow CORS from the React dev server(s). Use a whitelist so we only allow known origins.
-const whitelist = ['http://localhost:3000', 'http://localhost:3001'];
+// Read allowed origins from environment (comma-separated) so Docker/compose can configure it.
+// Fallback defaults include typical dev values and the compose service name mapping.
+const allowedFromEnv = process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://localhost:8080,http://frontend:80';
+const whitelist = allowedFromEnv.split(',').map(s => s.trim()).filter(Boolean);
+
+const allowAll = process.env.ALLOW_ALL_ORIGINS === 'true'; // Set this in .env for quick dev testing
+
+app.use((req, res, next) => {
+  // Helpful logging to debug CORS issues inside Docker
+  const incomingOrigin = req.headers.origin;
+  console.log('[CORS] Incoming Origin:', incomingOrigin);
+  console.log('[CORS] Whitelist:', whitelist);
+  next();
+});
+
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like curl/Postman) or when allowAll is enabled
+    if (!origin || allowAll) return callback(null, true);
     if (whitelist.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.warn('[CORS] Rejected origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },

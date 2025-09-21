@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # --------------------
+  # EXPRESS BACKEND SERVICE
+  # --------------------
+  backend:
+    build:
+      context: ./my-express-app # Build from the Dockerfile in this directory
+      dockerfile: Dockerfile
+    container_name: express_backend
+    # Map port 3000 inside the container to port 3000 on your host machine
+    ports:
+      - "3000:3000"
+    # Mount the .env file for secure environment variables
+    env_file:
+      - ./my-express-app/.env 
+    # Also pass these explicitly so docker-compose will inject them into the container
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:8080,http://frontend:80
+      - ALLOW_ALL_ORIGINS=false
+    # Mount the source code (except node_modules) for development hot-reloading (if using nodemon)
+    # volumes:
+    #   - ./my-express-app:/usr/src/app
+    #   - /usr/src/app/node_modules
+    networks:
+      - app-network
+
+  # --------------------
+  # REACT FRONTEND SERVICE
+  # --------------------
+  frontend:
+    build:
+      context: ./frontend # Build from the Dockerfile in this directory
+      dockerfile: Dockerfile
+    container_name: react_frontend
+    # Map port 80 (Nginx) inside the container to port 8080 on your host machine
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend # Ensure backend starts before frontend
+    networks:
+      - app-network
+
+# --------------------
+# Define the network
+# --------------------
+networks:
+  app-network:
+    driver: bridge
